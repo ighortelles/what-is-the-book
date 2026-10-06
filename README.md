@@ -27,8 +27,7 @@ O projeto utiliza um dataset anotado em formato COCO, localizado em `data/`:
 - `data/test/`: 22 imagens e 37 anotações; reservado para a avaliação final.
 
 As caixas anotadas da categoria `Book` são lidas do arquivo
-`_annotations.coco.json` de cada divisão. O diretório `data/` deve permanecer
-local e não deve ser enviado ao GitHub.
+`_annotations.coco.json` de cada divisão. O diretório `data/` não está neste Github devido ao seu tamanho. Para acessar o dataset completo, consulte: https://universe.roboflow.com/hifsaiftikhar77-gmail-com/day-24-book-detection
 
 ## Como os modelos são treinados
 
