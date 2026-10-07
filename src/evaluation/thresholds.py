@@ -61,7 +61,7 @@ def evaluate_models_thresholds(
     """Compara modelos e limiares reutilizando HOG por imagem e por lote.
 
     Args:
-        records: Imagens de validação; não forneça test durante ajustes.
+        records: Imagens de valid para ajustes, ou test com um limiar já congelado por modelo.
         classifiers: Pipelines com a mesma configuração de janelas.
         thresholds: Grade na escala própria de cada modelo.
         iou_threshold: IoU mínima para correspondência um-a-um.

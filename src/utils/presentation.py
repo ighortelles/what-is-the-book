@@ -207,6 +207,52 @@ def detection_figure(record: ImageRecord, predictions: list[Detection], title: s
     return figure
 
 
+def validation_test_figure(
+    validation: dict[str, ThresholdResult], test: dict[str, ThresholdResult]
+) -> Figure:
+    """Compara valid e test nos mesmos limiares, sem selecionar modelos pelo teste.
+
+    Args:
+        validation: Métricas de valid nos limiares escolhidos previamente.
+        test: Métricas finais de test para os mesmos experimentos e limiares.
+
+    Returns:
+        Figura com precisão, recall e F1 das duas divisões em painéis separados.
+    """
+    if not test or test.keys() != validation.keys():
+        raise ValueError("Informe os mesmos experimentos nas duas divisões.")
+    if any(validation[name].threshold != result.threshold for name, result in test.items()):
+        raise ValueError("Os limiares devem permanecer iguais entre valid e test.")
+    names = list(test)
+    positions = np.arange(len(names))
+    figure, axes = plt.subplots(1, 3, figsize=(17, 5))
+    for axis, field, label in zip(
+        axes,
+        ["precision", "recall", "f1_score"],
+        ["Precisão (%)", "Recall (%)", "F1 (%)"],
+        strict=True,
+    ):
+        for offset, results, color, split in [
+            (-0.18, validation, "#245c9f", "valid — seleção"),
+            (0.18, test, "#20a17b", "test — avaliação final"),
+        ]:
+            values = [100 * getattr(results[name].metrics, field) for name in names]
+            bars = axis.bar(positions + offset, values, width=0.36, color=color, label=split)
+            axis.bar_label(bars, labels=[f"{value:.1f}" for value in values], padding=3, fontsize=9)
+        maximum = max(
+            100 * getattr(results[name].metrics, field)
+            for results in [validation, test]
+            for name in names
+        )
+        axis.set_xticks(positions, [name.replace(" — ", "\n") for name in names], fontsize=9)
+        axis.set(ylabel=label, title=label, ylim=(0, maximum * 1.2 + 1))
+        axis.grid(axis="y", alpha=0.2)
+        axis.legend(fontsize=9)
+    figure.suptitle("Valid × test · mesmos pesos, janelas e limiares", fontsize=16)
+    figure.tight_layout()
+    return figure
+
+
 def latest_manifest() -> dict:
     """Carrega o manifesto mais recente sem escolher versões por suposição.
 

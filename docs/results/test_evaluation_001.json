@@ -1,0 +1,94 @@
+{
+  "date": "2026-10-06",
+  "protocol": {
+    "split": "test",
+    "threshold_source": "valid",
+    "iou_threshold": 0.5,
+    "step": 32,
+    "recommended_model_from_valid": "logistic_regression_004",
+    "images": 22,
+    "annotations": 37,
+    "dataset_sha256": "49663ebcd708b2341ba63a1b8c3b6344234c6030c3f8236e34388ba64b0281b3",
+    "models": [
+      {
+        "name": "logistic_regression_003",
+        "label": "Regressão — 30 negativos",
+        "threshold": 10.0,
+        "model_sha256": "0a9487e4ee8afe2513c5de3361fb4608be7dca714cf140aa9be14b25ce8c4038"
+      },
+      {
+        "name": "logistic_regression_004",
+        "label": "Regressão — C=0,01",
+        "threshold": 6.0,
+        "model_sha256": "a13bd3e123d2e9b8f1e2584ddd16ab433d3f54f211de66d6eee7beb8a4459964"
+      },
+      {
+        "name": "logistic_regression_005",
+        "label": "Regressão — negativos difíceis",
+        "threshold": 4.0,
+        "model_sha256": "c3bb5cbd59f177da5e7e053b09e38a3ad34857fbb1112cb008927176b081bcd3"
+      },
+      {
+        "name": "mlp",
+        "label": "MLP — 30 negativos",
+        "threshold": 0.495,
+        "model_sha256": "bec87ac3fd1435e5b74e7367048000294bbb0add027ef97886449cb2b90025b6"
+      }
+    ]
+  },
+  "elapsed_seconds": 267.76,
+  "results": [
+    {
+      "model": "logistic_regression_003",
+      "label": "Regressão — 30 negativos",
+      "threshold": 10.0,
+      "metrics": {
+        "true_positives": 19,
+        "false_positives": 499,
+        "false_negatives": 18,
+        "precision": 0.03667953667953668,
+        "recall": 0.5135135135135135,
+        "f1_score": 0.06846846846846848
+      }
+    },
+    {
+      "model": "logistic_regression_004",
+      "label": "Regressão — C=0,01",
+      "threshold": 6.0,
+      "metrics": {
+        "true_positives": 19,
+        "false_positives": 456,
+        "false_negatives": 18,
+        "precision": 0.04,
+        "recall": 0.5135135135135135,
+        "f1_score": 0.07421874999999999
+      }
+    },
+    {
+      "model": "logistic_regression_005",
+      "label": "Regressão — negativos difíceis",
+      "threshold": 4.0,
+      "metrics": {
+        "true_positives": 22,
+        "false_positives": 1560,
+        "false_negatives": 15,
+        "precision": 0.01390644753476612,
+        "recall": 0.5945945945945946,
+        "f1_score": 0.02717726991970352
+      }
+    },
+    {
+      "model": "mlp",
+      "label": "MLP — 30 negativos",
+      "threshold": 0.495,
+      "metrics": {
+        "true_positives": 19,
+        "false_positives": 501,
+        "false_negatives": 18,
+        "precision": 0.03653846153846154,
+        "recall": 0.5135135135135135,
+        "f1_score": 0.06822262118491922
+      }
+    }
+  ]
+}

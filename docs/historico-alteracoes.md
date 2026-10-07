@@ -376,6 +376,96 @@ O app compara previsões, não desempenho: sem caixas reais da imagem enviada, n
 há cálculo de precisão, recall ou TP/FP. O README descreve o novo fluxo. A
 avaliação final em test continua pendente, independente dessa mudança de interface.
 
+## 06/10/2026 — Exemplos de validação para cada modelo no notebook
+
+A seção 6.3 passa a mostrar os quatro experimentos da comparação, em vez de
+somente o modelo recomendado: regressão de referência, regressão com C=0,01,
+regressão com negativos difíceis e MLP. Todos analisam o primeiro registro de
+valid, sem selecionar uma imagem por apresentar melhor resultado.
+
+Cada modelo usa seu limiar selecionado em valid. A extração HOG é compartilhada
+por meio de `detect_many`, preservando previsões independentes. A seção inclui
+uma tabela de TP, FP, FN, limiar e quantidade de caixas para essa imagem e uma
+figura por experimento, com anotações reais à esquerda e todas as previsões à
+direita. As figuras recebem chaves diferentes no dicionário de exportação, para
+não substituir umas às outras. Se um modelo não tiver limiar elegível, o fallback
+é explicitamente identificado.
+
+As caixas reais usadas nas contagens são limitadas à área visível da imagem,
+como na avaliação agregada. Não foram alterados pesos, limiares selecionados,
+CSVs ou critérios de comparação. Não há novo treinamento nem avaliação em test;
+os exemplos são qualitativos e as contagens referem-se somente à imagem exibida.
+
+## 06/10/2026 — Identificação explícita da POC
+
+A introdução do notebook e o README identificam a aplicação Streamlit, em
+`src/app/`, como a Prova de Conceito (POC) do trabalho. O texto diferencia o
+papel do notebook (metodologia, treinamento e avaliação) do papel da aplicação
+(demonstração prática com uma imagem enviada pelo usuário e os modelos salvos).
+
+Foram incluídos o comando de execução e o fluxo de envio/comparação no notebook.
+A documentação esclarece que a demonstração pode usar uma imagem nova ou
+previamente obtida, não repete o treino e não substitui a avaliação quantitativa.
+A alteração é somente documental; código, pesos, limiares, métricas e saídas
+já salvas do notebook foram preservados.
+
+## 06/10/2026 — Avaliação final dos modelos em test
+
+### Protocolo congelado
+
+Foi adicionada a avaliação final nas 22 imagens de test, com 37 livros anotados,
+após a seleção dos modelos e limiares em valid. Os quatro arquivos avaliados são
+`logistic_regression_003.pkl`, `logistic_regression_004.pkl`,
+`logistic_regression_005.pkl` e `mlp.pkl`, com limiares 10, 6, 4 e 0,495.
+Mantivemos os pesos, janelas, passo 32 e IoU de correspondência ≥ 0,50. Não houve
+treinamento, mineração de negativos, seleção de modelos ou otimização de limiares
+em test. A recomendação anterior, da versão 004 com limiar 6, foi mantida.
+
+`src/evaluation/test_set.py` lê o manifesto de valid e usa um único limiar por
+modelo. O relatório inclui hashes das imagens/anotações e dos pickles, impedindo
+reutilizar silenciosamente resultados de arquivos diferentes. Quando o protocolo
+é idêntico, os reruns leem o relatório salvo sem repetir a inferência. Novos
+relatórios são versionados e não substituem os anteriores.
+
+### Resultados nas 22 imagens
+
+| Experimento | Limiar | TP | FP | FN | Precisão | Recall | F1 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Referência, 30 negativos | 10 | 19 | 499 | 18 | 3,67% | 51,35% | 0,06847 |
+| Regularização C=0,01 | 6 | 19 | 456 | 18 | 4,00% | 51,35% | 0,07422 |
+| Negativos difíceis, C=1 | 4 | 22 | 1.560 | 15 | 1,39% | 59,46% | 0,02718 |
+| MLP | 0,495 | 19 | 501 | 18 | 3,65% | 51,35% | 0,06822 |
+
+Tempo total: 267,76 s, incluindo carregamento e inferência compartilhada dos
+modelos. O relatório completo é
+[test_evaluation_001.json](results/test_evaluation_001.json). A regressão C=0,01
+teve precisão de 4,00% em test, comparada a 4,76% em valid. As métricas continuam
+limitadas e não foram usadas para reajustar o detector.
+
+### Notebook, documentação e verificações
+
+A nova seção 6.4 mostra os snapshots e os limiares congelados, as contagens e
+métricas finais e um gráfico valid × test, sem misturar métricas de seleção com
+as de avaliação final. As conclusões passam à seção 6.5. A seção 6.3 e a imagem
+de demonstração escolhida pelo usuário foram preservadas. O README passa a
+registrar a avaliação final como concluída; registros anteriores de test pendente
+permanecem no histórico porque descrevem etapas anteriores.
+
+Foram adicionados cinco testes sobre origem dos limiares, recomendação mantida
+de valid mesmo se outro modelo obtiver maior precisão em test, cache de resultados,
+hashes, relatórios versionados e rejeição de gráficos com limiares diferentes.
+Os vinte e quatro testes passaram, assim como o Ruff. Nenhum pickle, relatório
+de valid ou treinamento foi alterado. O artigo em edição não foi modificado.
+O notebook executou as 21 células de código sem erro e carregou o relatório de
+test já salvo, sem repetir a avaliação. O
+[gráfico valid × test](results/comparacao_valid_test.png) foi exportado e
+conferido visualmente; a tabela e o gráfico também estão embutidos no notebook.
+
+Após observar os resultados de test, novos ajustes não podem continuar tratando
+essa mesma divisão como avaliação final não observada; deve-se adotar um novo
+protocolo independente. O comando de consulta e a apresentação reutilizam a
+avaliação salva, sem transformar test em uma grade de otimização.
+
 ## Como registrar os próximos experimentos
 
 Acrescente uma entrada datada contendo:

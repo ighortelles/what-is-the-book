@@ -5,6 +5,10 @@ imagens**. A aplicação localiza cada livro e devolve sua caixa delimitadora
 (*bounding box*), usando apenas técnicas clássicas de Visão Computacional — sem
 Deep Learning.
 
+A **Prova de Conceito (POC)** do trabalho é a aplicação **Streamlit**, em
+`src/app/`, utilizada para a demonstração prática. O [notebook](src/main.ipynb)
+documenta a metodologia, o treinamento e a avaliação dos modelos.
+
 ## Metodologia
 
 O pipeline usa o OpenCV para extrair características **HOG** (*Histogram of
@@ -24,7 +28,7 @@ O projeto utiliza um dataset anotado em formato COCO, localizado em `data/`:
 
 - `data/train/`: 156 imagens e 204 anotações; usado para treinar os classificadores.
 - `data/valid/`: 45 imagens e 77 anotações; usado para ajustar limiares.
-- `data/test/`: 22 imagens e 37 anotações; reservado para a avaliação final.
+- `data/test/`: 22 imagens e 37 anotações; usado somente na avaliação final, sem ajustes.
 
 As caixas anotadas da categoria `Book` são lidas do arquivo
 `_annotations.coco.json` de cada divisão. O diretório `data/` não está neste Github devido ao seu tamanho. Para acessar o dataset completo, consulte: https://universe.roboflow.com/hifsaiftikhar77-gmail-com/day-24-book-detection
@@ -162,6 +166,7 @@ src/
     thresholds.py       # comparação de limiares sem repetir previsões
     run_logistic.py     # experimento reproduzível pela linha de comando
     run_precision.py    # regularização, negativos difíceis e MLP
+    test_set.py         # avaliação final com pesos e limiares congelados em valid
     plot_thresholds.py  # gráfico exportável, gerado a partir da tabela CSV
   preprocess/
     hog.py              # grayscale, CLAHE, redimensionamento e HOG
@@ -303,8 +308,45 @@ registra os IDs e caixas usados na mineração:
 
 Ampliar a grade não tornou o limiar ideal globalmente conhecido. Por exemplo,
 a regressão C=0,01 com limiar 10 teve precisão de 15,70%, mas recall de apenas
-24,68%, por isso não foi elegível. A escolha e os resultados são de validação;
-test continua reservado para a avaliação final.
+24,68%, por isso não foi elegível. Esses resultados e a escolha são de validação;
+a avaliação independente em test é apresentada na seção seguinte.
+
+## Avaliação final no conjunto test
+
+Os quatro experimentos foram avaliados nas 22 imagens e 37 livros anotados de
+test, sem treinamento, mineração ou procura de novos limiares. Os arquivos e
+limiares são exatamente os definidos anteriormente em valid. Mantivemos IoU ≥ 0,50,
+passo 32 e as configurações de janelas salvas com cada modelo.
+
+| Experimento | Limiar congelado | TP | FP | FN | Precisão | Recall | F1 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Regressão, referência de 30 negativos | 10 | 19 | 499 | 18 | 3,67% | 51,35% | 0,06847 |
+| Regressão, C=0,01 | 6 | 19 | 456 | 18 | 4,00% | 51,35% | 0,07422 |
+| Regressão, negativos difíceis | 4 | 22 | 1.560 | 15 | 1,39% | 59,46% | 0,02718 |
+| MLP, mesmos recortes aleatórios | 0,495 | 19 | 501 | 18 | 3,65% | 51,35% | 0,06822 |
+
+A recomendação permanece `logistic_regression_004`, escolhida em valid, com
+limiar 6. Sua precisão em test foi de 4,00%, contra 4,76% em valid. O resultado
+final confirma a limitação de falsos alarmes; não autoriza reajustar o limiar
+usando test. O conjunto é pequeno e os resultados devem ser interpretados com
+essa limitação.
+
+A avaliação levou 267,76 segundos no ambiente local. O
+[relatório final](docs/results/test_evaluation_001.json) registra métricas,
+limiares, hashes dos pickles e do dataset. O notebook inclui as tabelas e o
+gráfico valid × test na seção 6.4, mantendo as duas divisões claramente separadas.
+
+Para executar ou consultar o protocolo congelado:
+
+```powershell
+uv run python -m src.evaluation.test_set
+```
+
+Se os pesos, os limiares, as imagens e as anotações são os mesmos, o relatório
+salvo é reutilizado sem repetir a inferência. Protocolos diferentes recebem
+relatórios versionados; isso é rastreabilidade, não autorização para usar test
+como uma nova validação. Novos experimentos precisam de avaliação independente
+adequada após a exposição aos resultados deste test.
 
 ## Salvamento e reutilização de modelos
 
@@ -332,7 +374,11 @@ configuração padrão de busca; não representam o treinamento corrigido.
 Modelos com limiar ajustado armazenam também `score_threshold_` e informações de
 treinamento em `training_metadata_`.
 
-## Aplicação Streamlit
+## Prova de Conceito (POC): aplicação Streamlit
+
+A aplicação Streamlit constitui a POC do projeto: um protótipo funcional que
+permite demonstrar o pipeline completo, desde o envio de uma imagem até a
+visualização das detecções.
 
 Salve os modelos treinados usando a célula de persistência do notebook. A aplicação
 compara **todos os arquivos `.pkl` da Regressão Logística e do MLP** disponíveis
@@ -396,8 +442,10 @@ igual a 0,50. O notebook reporta:
 - Revocação: `TP / (TP + FN)`.
 - F1-score: média harmônica entre precisão e revocação.
 
-O limiar `SCORE_THRESHOLD` deve ser escolhido somente com `valid`. Após essa
-decisão, o conjunto `test` é usado uma única vez para o resultado final.
+O limiar de cada modelo deve ser escolhido somente com `valid`. Após essa
+decisão, test é avaliado com as escolhas congeladas, sem selecionar novos
+limiares ou modelos por suas métricas. Os reruns da apresentação leem o relatório
+salvo, não iniciam uma nova busca de parâmetros.
 
 ## Histórico dos experimentos
 
