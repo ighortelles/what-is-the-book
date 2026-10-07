@@ -1,0 +1,213 @@
+% Documento autossuficiente para o editor LaTeX do Codex.
+% Layout em duas colunas inspirado no formato SBC solicitado no enunciado.
+% Para submissão com conformidade tipográfica estrita, usar o template oficial
+% indicado pela disciplina.
+\documentclass[12pt,a4paper,twocolumn]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[brazil]{babel}
+\usepackage{times}
+\usepackage[left=3cm,right=2cm,top=3.5cm,bottom=2.5cm]{geometry}
+\usepackage{amsmath}
+\usepackage{booktabs}
+\usepackage{microtype}
+\usepackage[hidelinks]{hyperref}
+\setlength{\columnsep}{0.7cm}
+\setlength{\emergencystretch}{2em}
+\newcommand{\autores}{Ighor Tatsch Telles}
+\newcommand{\emails}{ighor.tatsch@edu.pucrs.br}
+\title{What Is the Book? Detecção de livros com HOG e classificadores supervisionados}
+\author{\autores\\[4pt]\small Escola Politécnica -- PUCRS\\\small Introdução à Visão Computacional\\\small\emails}
+\date{}
+\begin{document}
+% As chaves protegem o argumento de \twocolumn de colchetes internos.
+\twocolumn[{\maketitle
+\begin{center}\begin{minipage}{0.92\textwidth}
+\small\textbf{Abstract.} This paper presents a book detector based on spatial normalization, contrast enhancement, Histogram of Oriented Gradients descriptors, sliding windows, and non-maximum suppression. Logistic regression and a multilayer perceptron are compared using a public dataset with separate training, validation, and test splits. Thresholds are selected to maximize validation precision subject to recall of at least 50\%, then frozen for final testing. Stronger logistic regression regularization yields 4.76\% precision and 50.65\% recall on validation. On 22 test images with 37 annotated books, the selected model achieves 4.00\% precision and 51.35\% recall, with 19 true positives, 456 false positives, and 18 false negatives. The prototype demonstrates the complete detection pipeline, although the high number of false positives limits practical use.
+
+\medskip
+\textbf{Resumo.} Este artigo apresenta um detector de livros baseado em normalização espacial, realce de contraste, descritores de histogramas de gradientes orientados, janelas deslizantes e supressão de máximos. Comparam-se regressão logística e perceptron multicamadas em um conjunto público dividido em treinamento, validação e teste. Selecionam-se limiares que maximizam a precisão na validação, sujeitos a revocação mínima de 50\%, e congelam-se essas escolhas para o teste final. A regressão com maior regularização obtém precisão de 4,76\% e revocação de 50,65\% na validação. Nas 22 imagens de teste, com 37 livros anotados, o modelo selecionado alcança precisão de 4,00\% e revocação de 51,35\%, com 19 acertos, 456 falsos positivos e 18 falsos negativos. O protótipo demonstra o pipeline completo, embora os numerosos falsos positivos limitem sua aplicação prática.
+\medskip
+\textbf{Palavras-chave:} detecção de objetos; livros; HOG; regressão logística; MLP.
+\end{minipage}\end{center}\vspace{0.5cm}}]
+
+\section{Introdução}
+Localizar livros em imagens exige reconhecer sua aparência e determinar sua posição. Capas com diferentes texturas, proporções e orientações, juntamente com bordas presentes no fundo, dificultam distinguir livros de outras regiões. Uma classificação correta de um recorte não garante, por si só, que a caixa correspondente localize adequadamente um objeto na imagem completa.
+
+O projeto \textit{What Is the Book?} investiga essa tarefa com técnicas clássicas de visão computacional. Sua saída consiste em caixas delimitadoras de livros nas imagens; não se pretende identificar títulos, reconhecer texto ou consultar catálogos. O desenvolvimento atende ao Trabalho I de Introdução à Visão Computacional da PUCRS, que exige utilização de OpenCV, características extraídas das imagens, avaliação quantitativa e uma prova de conceito, permitindo MLP como arquitetura neural \cite{enunciado}.
+
+O objetivo é construir e avaliar um pipeline baseado em HOG, comparando regressão logística e MLP. Examina-se também o efeito de regularização, amostragem de fundo e mineração de negativos difíceis. A contribuição é uma implementação rastreável que relaciona a geração geométrica das regiões candidatas aos erros efetivos de classificação e localização.
+
+\section{Fundamentação}
+O descritor HOG agrega direções de gradiente em células espaciais e normaliza histogramas em blocos locais. Essa representação descreve contornos e padrões de intensidade \cite{dalal}. Neste projeto, ela é aplicada a recortes de livros e fundo. A transferência do descritor para esse domínio é uma escolha experimental; os resultados de outros problemas não asseguram desempenho na detecção de livros.
+
+A regressão logística aprende uma função linear sobre as características padronizadas. O parâmetro $C$ controla inversamente a força da regularização: reduzir $C$ restringe mais os coeficientes. O MLP introduz transformações não lineares entre os descritores e a decisão. Ambos recebem características previamente extraídas, mantendo a extração visual separada do aprendizado supervisionado.
+
+A busca por janelas transforma classificadores de recortes em detectores. Como diferentes janelas podem cobrir o mesmo objeto, a supressão de máximos não locais, ou NMS, elimina propostas redundantes por pontuação e sobreposição. Contudo, ela não corrige automaticamente caixas de fundo com alta pontuação.
+
+O NMS é uma etapa de pós-processamento: mantém a caixa de maior pontuação e suprime propostas com sobreposição acima do limiar, repetindo a seleção nas caixas restantes \cite{nms}. Seu uso se justifica pela redundância produzida pela busca em diferentes posições e escalas. O material \textit{Histogram of Oriented Gradients (HOG) in Computer Vision} é incluído como leitura complementar sobre o descritor \cite{hogtutorial}.
+
+\section{Materiais e metodologia}
+\subsection{Dados e separação experimental}
+Utiliza-se o conjunto público \textit{Day 24 Book Detection}, disponibilizado no Roboflow Universe e identificado no repositório \cite{dataset}. As anotações locais seguem o formato COCO, com caixas da categoria \texttt{Book}. A Tabela~\ref{tab:dados} apresenta as contagens registradas na documentação do projeto.
+
+\begin{table}[ht]
+\centering\small
+\caption{Divisões do conjunto de dados.}
+\label{tab:dados}
+\begin{tabular}{lrr}\toprule
+Divisão & Imagens & Livros\\\midrule
+Treinamento & 156 & 204\\
+Validação & 45 & 77\\
+Teste & 22 & 37\\\midrule
+Total & 223 & 318\\\bottomrule
+\end{tabular}
+\end{table}
+
+Somente treinamento é usado para aprender os modelos, estimar tamanhos das janelas e minerar negativos difíceis. A validação serve à seleção dos limiares e à comparação das variantes. Após essas escolhas, os quatro modelos são avaliados nas 22 imagens de teste, sem treinamento, mineração ou ajuste adicional. As métricas de validação e de teste são apresentadas separadamente: as primeiras orientam a seleção; as últimas avaliam as configurações congeladas em uma divisão não utilizada nesses ajustes.
+
+\subsection{Pipeline e pré-processamento}
+O fluxo implementado é: imagem, normalização espacial, geração de janelas, pré-processamento dos recortes, HOG, classificação em lotes, filtragem por limiar, NMS e conversão das caixas para a imagem original.
+
+O maior lado da imagem é normalizado para 640 pixels, preservando sua proporção. Essa escolha torna a resolução de busca consistente entre imagens e limita o custo da varredura em entradas de alta resolução. As caixas anotadas acompanham essa transformação; coordenadas externas são limitadas à região visível, e caixas sem área são descartadas. Na implementação, utiliza-se interpolação por área quando a imagem é reduzida e interpolação linear quando é ampliada. A normalização pode remover detalhes de livros pequenos, de modo que 640 pixels representa uma escolha operacional, não uma resolução ótima demonstrada.
+
+Cada recorte é convertido para escala de cinza. A conversão reduz a entrada a um canal e concentra a representação nas variações de intensidade usadas para calcular os gradientes do HOG. Essa escolha é coerente com o objetivo de representar bordas e textura, mas descarta informações de cor que poderiam ajudar a diferenciar determinadas capas do fundo.
+
+Em seguida, aplica-se CLAHE (\textit{Contrast Limited Adaptive Histogram Equalization}), com limite de contraste 2,0 e grade de $8\times8$ regiões. A equalização local procura evidenciar detalhes em partes do recorte com baixo contraste, enquanto o recorte dos histogramas limita a amplificação excessiva de contraste e ruído \cite{clahetutorial,opencvclahe}. Essa técnica é escolhida para tornar contornos de livros mais perceptíveis quando a iluminação varia dentro da imagem, antes do cálculo dos gradientes. O limite não elimina a possibilidade de realçar texturas do fundo, e o efeito isolado do CLAHE sobre as métricas não foi medido por ablação.
+
+Após o realce, o recorte é redimensionado para $96\times128$ pixels, com interpolação por área. O tamanho fixo assegura a mesma organização espacial de células e blocos e um vetor de dimensão constante, requisito para fornecer entradas compatíveis aos dois classificadores. Diferentemente da normalização da imagem completa, essa transformação não preserva necessariamente a proporção do recorte: a padronização facilita o aprendizado, mas pode deformar contornos e perder detalhes. O mesmo procedimento é aplicado no treinamento e na inferência para manter a representação consistente.
+
+O HOG usa células $8\times8$, blocos $16\times16$, deslocamento de blocos $8\times8$ e nove orientações. Há 11 posições horizontais e 15 verticais de blocos. Cada bloco reúne quatro células, produzindo
+\begin{equation}
+d=11\cdot15\cdot4\cdot9=5940
+\end{equation}
+características por recorte. O tamanho fixo permite compartilhar a mesma matriz entre classificadores, mas deforma recortes cuja proporção difere da janela HOG.
+
+\subsection{Construção dos exemplos}
+Cada caixa de livro gera um recorte positivo. Acrescentam-se até duas janelas candidatas com interseção sobre união (IoU) de pelo menos 0,60 com essa caixa, aproximando exemplos de treinamento das regiões encontradas na inferência. A IoU entre duas caixas $A$ e $B$ é definida como
+\begin{equation}
+\operatorname{IoU}(A,B)=\frac{|A\cap B|}{|A\cup B|}.
+\end{equation}
+
+Os negativos são janelas sorteadas de fundo. Para evitar rotular fragmentos de livros como negativos, a soma das áreas de interseção com caixas anotadas, dividida pela área da janela, deve ser no máximo 1\%. Esse critério é mais adequado que usar apenas IoU baixa: uma pequena janela dentro de um livro grande pode ter IoU baixa e ainda conter exclusivamente o objeto.
+
+Com até 15 negativos por imagem, a documentação registra 2740 recortes, sendo 595 positivos e 2145 negativos. A rodada principal utiliza até 30 negativos e registra 4885 exemplos comuns aos modelos de referência, regularizado e MLP. A semente 42 controla a amostragem. A quantidade solicitada é um limite, pois depende de janelas válidas e da remoção de duplicatas.
+
+\subsection{Janelas e classificadores}
+Os tamanhos-base são estimados por K-Means sobre larguras e alturas das caixas normalizadas de treinamento, em escala logarítmica. Utilizam-se até 12 grupos, semente 42 e dez inicializações. Na inferência, os tamanhos são multiplicados por 0,8, 1,0 e 1,25. A busca inclui posições nas bordas e uma janela da imagem inteira. O passo padrão máximo é 32 pixels, reduzido em janelas pequenas, com mínimo padrão de 16 pixels.
+
+Os descritores passam por \texttt{StandardScaler}, ajustado no treinamento e reutilizado na inferência. A regressão utiliza balanceamento das classes, até 3000 iterações e $C=1$ na referência ou $C=0{,}01$ na variante regularizada. O MLP possui duas camadas ocultas, com 128 e 64 neurônios, até 1000 épocas e parada antecipada. Sua validação interna para parada antecipada utiliza uma parcela dos recortes de treinamento, distinta da divisão externa de validação.
+
+A padronização das características centraliza cada componente e ajusta sua escala pelo desvio padrão observado no treinamento. Isso reduz diferenças de escala entre entradas, tornando mais consistente a ação da regularização na regressão e o ajuste dos pesos do MLP. Os mesmos parâmetros são reutilizados em validação e teste, sem recalculá-los nessas divisões. Trata-se de uma transformação dos descritores, posterior ao pré-processamento das imagens; não foi realizada uma comparação isolada com a ausência de padronização.
+
+As janelas são classificadas em lotes de até 256. A regressão utiliza a margem de \texttt{decision\_function}; o MLP utiliza $p(\text{livro})-0{,}5$. Logo, os limiares têm escalas distintas. Após filtrar pela pontuação, aplica-se NMS com IoU 0,35. Esse valor controla redundância, enquanto a IoU 0,50 usada na avaliação controla o acerto de localização.
+
+\subsection{Negativos difíceis e variantes}
+A mineração limitada seleciona 30 imagens de treinamento e até oito regiões de fundo de alta pontuação por imagem, usando o detector de referência e semente 42. Excluem-se regiões cuja ocupação anotada exceda 1\%. O manifesto registra 172 negativos adicionais, totalizando 5057 exemplos na variante correspondente. A regressão dessa variante usa $C=1$, mantendo separadas as alterações de regularização e mineração.
+
+Comparam-se quatro condições: regressão de referência com 30 negativos, regressão com $C=0{,}01$, regressão acrescida de negativos difíceis e MLP com os mesmos recortes aleatórios da referência. Não foi executada a variante de 60 negativos por imagem.
+
+\section{Protocolo de avaliação}
+As detecções são ordenadas por pontuação e associadas às anotações por correspondência um a um. Uma previsão conta como verdadeiro positivo (TP) quando alcança IoU de pelo menos 0,50 com uma anotação ainda disponível; escolhe-se a de maior IoU. Previsões restantes são falsos positivos (FP), e anotações sem correspondência são falsos negativos (FN).
+
+As contagens são agregadas separadamente nas 45 imagens de validação e nas 22 imagens de teste antes do cálculo das métricas:
+\begin{align}
+P&=\frac{TP}{TP+FP}, & R&=\frac{TP}{TP+FN},\\
+F_1&=\frac{2PR}{P+R}.
+\end{align}
+Não se calcula a média de precisões individuais das imagens.
+
+Para a regressão, a rodada principal avalia os limiares 0; 0,5; 1; 2; 3; 4; 6; 8; 10; 12; 15; 20 e 25. Para o MLP, avalia 0; 0,1; 0,2; 0,3; 0,4; 0,45; 0,48; 0,49; 0,495 e 0,499. Seleciona-se a maior precisão entre configurações com $R\geq0{,}50$, com desempate por maior $F_1$ e menor limiar. A restrição evita selecionar um detector que quase não recupera livros apenas para reduzir falsos alarmes.
+
+Os modelos compartilham a extração HOG dos lotes de validação. Em cada modelo, previsões e NMS são calculados no menor limiar; os demais resultados são obtidos filtrando as caixas mantidas. Isso preserva o comportamento do NMS guloso ordenado por pontuação e evita repetir a extração para cada limiar.
+
+\subsection{Avaliação final com protocolo congelado}
+A avaliação de teste carrega os modelos registrados no manifesto de validação e utiliza apenas um limiar por modelo: 10 para a referência, 6 para a regressão regularizada, 4 para a regressão com negativos difíceis e 0,495 para o MLP. Mantêm-se os pesos, as configurações de janelas salvas, o passo máximo 32, o NMS e a IoU de correspondência de 0,50. Não se executa uma busca de limiares no teste, nem se impõe novamente a restrição de revocação mínima para selecionar um vencedor nessa divisão.
+
+A recomendação permanece a regressão \texttt{logistic\_regression\_004}, escolhida na validação. O relatório final registra hashes SHA-256 dos arquivos dos modelos e das imagens e anotações, além das métricas e do tempo. Quando o protocolo é idêntico, a implementação reutiliza o relatório salvo sem repetir a inferência. Essa rastreabilidade permite identificar precisamente quais dados e modelos deram origem aos resultados.
+
+\section{Resultados e discussão}
+\subsection{Seleção na validação}
+
+\begin{table*}[t]
+\centering\small
+\caption{Resultados de validação com IoU mínima de 0,50 e revocação mínima de 50\%.}
+\label{tab:resultados}
+\begin{tabular}{lrrrrrrr}\toprule
+Experimento & Limiar & TP & FP & FN & Precisão (\%) & Revocação (\%) & $F_1$\\\midrule
+Regressão: referência & 10 & 40 & 896 & 37 & 4,27 & 51,95 & 0,07897\\
+Regressão: $C=0{,}01$ & 6 & 39 & 780 & 38 & 4,76 & 50,65 & 0,08705\\
+Regressão: negativos difíceis & 4 & 39 & 2843 & 38 & 1,35 & 50,65 & 0,02636\\
+MLP: mesmos recortes & 0,495 & 43 & 948 & 34 & 4,34 & 55,84 & 0,08052\\\bottomrule
+\end{tabular}
+\end{table*}
+
+A regressão com $C=0{,}01$ apresentou a melhor precisão entre as configurações elegíveis: 39 TP, 780 FP e 38 FN. Em relação à referência, os FP diminuíram 12,9\%, com perda de um TP. A precisão aumentou aproximadamente 0,49 ponto percentual, e o $F_1$ passou de 0,07897 para 0,08705. O modelo recomendado nessa rodada é \texttt{logistic\_regression\_004}, com limiar 6.
+
+O MLP recuperou 43 livros, quatro a mais que a regressão regularizada, mas produziu 948 FP e precisão menor. Seu limiar 0,495 equivale a aceitar probabilidades de pelo menos 99,5\%. Mesmo esse corte elevado não impediu numerosos falsos alarmes, evidenciando que a probabilidade estimada não assegura uma localização correta no protocolo empregado.
+
+A mineração limitada piorou o ponto selecionado: os mesmos 39 TP foram acompanhados de 2843 FP. O experimento não sustenta atribuir uma causa única à piora. A quantidade e diversidade dos negativos, a alteração da distribuição de exemplos e o reajuste do limiar são hipóteses para investigação. Não se pode concluir, a partir dessa rodada, que mineração de negativos difíceis seja inadequada em geral.
+
+\subsection{Compromisso entre precisão e revocação}
+Na regressão regularizada, o limiar 10 produz 19 TP, 102 FP e 58 FN: precisão de 15,70\% e revocação de 24,68\%. Apesar de sua precisão maior, esse ponto é excluído pelo requisito de recuperar pelo menos metade dos livros. O melhor resultado depende, portanto, da regra de seleção e da grade testada; não constitui um ótimo global demonstrado.
+
+O histórico também registra regressão com até 15 negativos e limiar zero, com 53 TP, 8567 FP e 24 FN. Ao usar até 30 negativos e limiar 10, obtiveram-se 40 TP e 896 FP. A redução de 89,5\% dos falsos positivos acompanha perda de 13 acertos. Como treinamento e limiar mudam conjuntamente nessa comparação, ela não isola o efeito da quantidade de negativos.
+
+A referência da rodada principal foi carregada da versão \texttt{logistic\_regression\_002}; a versão 003 preserva sua avaliação na grade ampliada. As versões 004 e 005 correspondem aos novos treinos de regularização e mineração. Esse versionamento evita confundir novas avaliações com novos modelos.
+
+\subsection{Resultados finais no teste}
+A Tabela~\ref{tab:teste} apresenta a avaliação dos quatro modelos com seus limiares congelados.
+
+\begin{table*}[t]
+\centering\small
+\caption{Resultados finais nas 22 imagens de teste, com 37 livros anotados e IoU mínima de 0,50. Os limiares foram definidos exclusivamente na validação.}
+\label{tab:teste}
+\begin{tabular}{lrrrrrrr}\toprule
+Experimento & Limiar & TP & FP & FN & Precisão (\%) & Revocação (\%) & $F_1$\\\midrule
+Regressão: referência & 10 & 19 & 499 & 18 & 3,67 & 51,35 & 0,06847\\
+Regressão: $C=0{,}01$ & 6 & 19 & 456 & 18 & 4,00 & 51,35 & 0,07422\\
+Regressão: negativos difíceis & 4 & 22 & 1560 & 15 & 1,39 & 59,46 & 0,02718\\
+MLP: mesmos recortes & 0,495 & 19 & 501 & 18 & 3,65 & 51,35 & 0,06822\\\bottomrule
+\end{tabular}
+\end{table*}
+
+O modelo recomendado na validação obteve 19 TP, 456 FP e 18 FN no teste, com precisão de 4,00\%, revocação de 51,35\% e $F_1$ de 0,07422. Frente à referência no mesmo teste, preservou os 19 acertos e reduziu os FP de 499 para 456, uma diminuição de 8,6\%. A maior regularização apresentou, portanto, menos falsos alarmes nas duas divisões observadas, embora a ausência de repetições e intervalos de confiança impeça afirmar significância estatística dessa diferença.
+
+Comparando as divisões, a precisão da regressão regularizada caiu de 4,76\% para 4,00\%, aproximadamente 0,76 ponto percentual, e o $F_1$ caiu de 0,08705 para 0,07422. A revocação passou de 50,65\% para 51,35\%, diferença de cerca de 0,70 ponto percentual. Como as divisões possuem quantidades diferentes de imagens e livros, suas contagens absolutas de TP e FP não devem ser interpretadas diretamente como melhora ou piora; as métricas normalizadas expressam melhor essa comparação.
+
+O MLP, que recuperou mais livros na validação, empatou com a referência e a regressão regularizada em 19 acertos no teste, com 501 FP. A vantagem de revocação observada na validação não se repetiu nessa divisão. Já a regressão com negativos difíceis recuperou 22 livros, a maior revocação do teste (59,46\%), mas gerou 1560 FP e precisão de apenas 1,39\%. Sua recuperação adicional veio acompanhada de muitos falsos alarmes, mantendo o compromisso desfavorável observado na validação.
+
+Esses resultados não foram utilizados para redefinir a recomendação ou reajustar os limiares. A baixa precisão final confirma que a configuração escolhida ainda apresenta limitações importantes para uso prático, mesmo recuperando aproximadamente metade dos livros anotados.
+
+\subsection{Cobertura geométrica e limitações}
+A documentação registra que 75 dos 77 livros de validação possuem pelo menos uma janela candidata com IoU de 0,50, correspondendo a 97,4\% de cobertura. Trata-se de um limite geométrico da recuperação para essas janelas, calculado independentemente da classificação. A diferença em relação aos aproximadamente 51\% de revocação do modelo selecionado mostra que oferecer regiões adequadas não basta para aceitá-las e preservá-las até a saída.
+
+A precisão de 4,76\% na validação significa que a maior parte das caixas previstas não corresponde a livros pelo critério de avaliação: há 20 FP para cada TP no ponto selecionado. No teste, a precisão de 4,00\% corresponde a 24 FP por TP, reforçando essa limitação. O detector demonstra a execução completa, mas ainda exige revisão humana substancial. Possíveis dificuldades incluem semelhança entre contornos do fundo e dos livros, distorção dos recortes, pequena quantidade de imagens e eventuais livros não anotados em regiões tratadas como fundo.
+
+Essas explicações são hipóteses, pois não há análise categorizada dos erros nem ablação das etapas de pré-processamento. Também não foram registrados intervalos de confiança ou repetições com múltiplas sementes. A seleção e comparação na mesma validação pode favorecer configurações específicas dessas imagens. O teste com escolhas congeladas fornece uma avaliação independente dos ajustes realizados, mas contém apenas 22 imagens e 37 livros, limitando a extensão das conclusões sobre generalização. Após observar seus resultados, novos ajustes precisam de outro protocolo de avaliação independente; essa mesma divisão não deve ser reutilizada como teste final não observado.
+
+\section{Prova de conceito e reprodução}
+A implementação usa Python, OpenCV e scikit-learn. O notebook \texttt{src/main.ipynb} organiza os dados, o treinamento, as métricas, a comparação dos modelos e exemplos de detecção. A aplicação Streamlit em \texttt{src/app/} constitui a prova de conceito: recebe uma imagem e mostra as caixas produzidas pelas versões salvas da regressão e do MLP.
+
+Cada versão prevê independentemente sobre a mesma imagem, sem votação entre modelos e sem novo treinamento. A interface permite demonstrar o fluxo completo com uma imagem previamente obtida ou nova. Essa demonstração funcional complementa as métricas, mas não substitui a avaliação em um conjunto anotado.
+
+Os arquivos de modelos preservam padronização, configuração das janelas, limiar selecionado e metadados de treinamento. A rodada de treinamento e validação pode ser reproduzida pelo módulo \texttt{src.evaluation.run\_precision}. Os CSVs registram todas as contagens por limiar, e o manifesto associa resultados a modelos, exemplos e negativos minerados. O módulo \texttt{src.evaluation.test\_set} executa ou consulta a avaliação congelada, registrada em \texttt{test\_evaluation\_001.json}. O notebook também apresenta as tabelas finais e o gráfico de comparação entre validação e teste, exportado como \texttt{comparacao\_valid\_test.png}. Os PNGs em \texttt{docs/results/} oferecem ilustrações complementares no repositório; o presente documento é autossuficiente para compilação.
+
+\section{Conclusão}
+Foi desenvolvido um detector de livros que combina pré-processamento com OpenCV, HOG, classificação supervisionada, janelas deslizantes e NMS. A metodologia explicita a diferença entre classificar recortes e localizar objetos, utiliza apenas treinamento para gerar exemplos, seleciona configurações na validação e realiza a avaliação final no teste com pesos e limiares congelados.
+
+Na validação, a regressão logística com $C=0{,}01$ e limiar 6 alcançou a melhor precisão sob revocação mínima de 50\%: 4,76\% de precisão e 50,65\% de revocação. Mantida essa escolha, o teste final produziu 19 acertos, 456 falsos positivos e 18 falsos negativos, com precisão de 4,00\%, revocação de 51,35\% e $F_1$ de 0,07422. O MLP não manteve sua vantagem de recuperação no teste, e a mineração limitada recuperou mais livros à custa de muitos falsos alarmes. A avaliação final reforça que a elevada incidência de falsos positivos limita o uso prático, embora a prova de conceito permita demonstrar o funcionamento da solução.
+
+Como continuidade, propõem-se inspeção e categorização dos erros, ampliação e revisão das anotações, avaliação de preservação das proporções nos recortes e mineração mais diversificada. Essas alterações devem ser investigadas em treinamento e validação, com uma nova avaliação independente após a exposição aos resultados do teste atual. As métricas finais registradas devem permanecer associadas ao protocolo e aos modelos efetivamente avaliados.
+
+\begin{thebibliography}{9}
+\bibitem{hogtutorial} Towards Data Science. \textit{Histogram of Oriented Gradients (HOG) in Computer Vision}. Disponível em: \url{https://towardsdatascience.com/histogram-of-oriented-gradients-hog-in-computer-vision-a2ec66f6e671/}. Referência complementar indicada pelo autor.
+\bibitem{nms} Ultralytics. \textit{Non-Maximum Suppression (NMS)}. Disponível em: \url{https://www.ultralytics.com/glossary/non-maximum-suppression-nms}. Acesso em: 6 out. 2026.
+\bibitem{clahetutorial} Zavala, F. (2025). \textit{Histogram equalization CLAHE algorithm}. ImageCraft, Medium, 17 mar. Disponível em: \url{https://medium.com/imagecraft/histogram-equalization-clahe-algorithm-8841d402fc76}. Acesso em: 6 out. 2026.
+\bibitem{opencvclahe} OpenCV. \textit{Histograms -- 2: Histogram Equalization}. Documentação oficial. Disponível em: \url{https://docs.opencv.org/4.x/d5/daf/tutorial_py_histogram_equalization.html}. Acesso em: 6 out. 2026.
+\bibitem{dalal} Dalal, N. e Triggs, B. (2005). Histograms of Oriented Gradients for Human Detection. \textit{IEEE Computer Society Conference on Computer Vision and Pattern Recognition}, v. 1, p. 886--893. DOI: \href{https://doi.org/10.1109/CVPR.2005.177}{10.1109/CVPR.2005.177}.
+\bibitem{dataset} Roboflow Universe. \textit{Day 24 Book Detection}. Conjunto de dados público identificado no README do projeto. Disponível em: \url{https://universe.roboflow.com/hifsaiftikhar77-gmail-com/day-24-book-detection}.
+\bibitem{enunciado} Amaral, D. O. F. do. (2026). \textit{Introdução à Visão Computacional: Trabalho I}. Escola Politécnica, Pontifícia Universidade Católica do Rio Grande do Sul. Enunciado disponibilizado no diretório \texttt{docs/} do projeto.
+\bibitem{projeto} \textit{What Is the Book?} (2026). Documentação e artefatos locais: README, código-fonte, notebook, relatórios CSV, manifesto \texttt{precision\_run\_001.json} e relatório final \texttt{test\_evaluation\_001.json}. Resultados de validação e teste de 6 de outubro de 2026.
+\end{thebibliography}
+\end{document}
